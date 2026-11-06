@@ -1,108 +1,41 @@
-name: Android CI/CD - VEL 0.1
+pasos :
+  - nombre : Descargar código fuente del repositorio
+    usos : actions/checkout@v4
 
-on:
-  push:
-    branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
-  workflow_dispatch:
+  - nombre : Configurar JDK 17 (Temurin)
+    usos : actions/setup-java@v4
+    con :
+      distribución : ' temurin '
+      versión de java : ' 17 '
 
-jobs:
-  build:
-    name: Build & Test Native Android
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Descargar código fuente del repositorio
-        uses: actions/checkout@v4
-
-      - name: Configurar JDK 17 (Temurin)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Localizar directorio raíz del proyecto Android
-        id: find-android
-        run: |
-          echo "=== DIAGNÓSTICO DE ESTRUCTURA DEL REPOSITORIO ==="
-          pwd
-          ls -la
-
-          if [ -f "gradlew" ] && [ -d "app" ]; then
-            TARGET_DIR="."
-          elif [ -f "android-vel/gradlew" ] && [ -d "android-vel/app" ]; then
-            TARGET_DIR="android-vel"
-          elif [ -f "vel-android-nativo/gradlew" ] && [ -d "vel-android-nativo/app" ]; then
-            TARGET_DIR="vel-android-nativo"
-          else
-            DISCOVERED=$(find . -name "gradlew" -not -path "*/node_modules/*" | head -n 1)
-            if [ -n "$DISCOVERED" ]; then
-              TARGET_DIR=$(dirname "$DISCOVERED")
-            else
-              TARGET_DIR="."
-            fi
-          fi
-
-          echo "Directorio de compilación: '$TARGET_DIR'"
-          echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
-          echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
-
-      - name: Verificar y asegurar wrapper de Gradle (properties y jar)
-        run: |
-          WRAPPER_DIR="${{ env.ANDROID_DIR }}/gradle/wrapper"
-          mkdir -p "$WRAPPER_DIR"
-
-          PROPS_PATH="$WRAPPER_DIR/gradle-wrapper.properties"
-          if [ ! -f "$PROPS_PATH" ]; then
-            echo "AVISO: gradle-wrapper.properties no encontrado en $PROPS_PATH. Generando automáticamente..."
-            cat << 'EOF' > "$PROPS_PATH"
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-bin.zip
-networkTimeout=10000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
-            echo "gradle-wrapper.properties generado con éxito:"
-            cat "$PROPS_PATH"
-          else
-            echo "gradle-wrapper.properties verificado en: $PROPS_PATH"
-          fi
-
-          JAR_PATH="$WRAPPER_DIR/gradle-wrapper.jar"
-          if [ -f "$JAR_PATH" ] && [ $(stat -c%s "$JAR_PATH" 2>/dev/null || stat -f%z "$JAR_PATH" 2>/dev/null || echo 0) -gt 1000 ]; then
-            echo "gradle-wrapper.jar verificado correctamente en: $JAR_PATH"
-          else
-            echo "AVISO: gradle-wrapper.jar ausente o incompleto. Descargando versión oficial de Gradle 8.10.2..."
-            curl -sSL -o "$JAR_PATH" "https://raw.githubusercontent.com/gradle/gradle/v8.10.2/gradle/wrapper/gradle-wrapper.jar" || \
-            curl -sSL -o "$JAR_PATH" "https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar"
-            ls -la "$JAR_PATH"
-          fi
-
-      - name: Asegurar permisos ejecutables para gradlew
-        run: |
-          chmod +x ${{ env.ANDROID_DIR }}/gradlew
-          ls -la ${{ env.ANDROID_DIR }}/gradlew
-
-      - name: Ejecutar pruebas unitarias de seguridad (10 pruebas)
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          ./gradlew testDebugUnitTest --no-daemon --stacktrace
-
-      - name: Compilar APK Debug
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Publicar APK como artefacto descargable
-        uses: actions/upload-artifact@v4
-        with:
-          name: vel-0.1-app-debug
-          path: |
-            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/app-debug.apk
-            **/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+  - nombre : Localizar directorio raíz del proyecto Android
+    id : find-android
+    correr : |
+      echo "=== DIAGNÓSTICO DE ESTRUCTURA DEL REPOSITORIO ==="
+      persona con discapacidad
+      ls-la
+      Si [ -f "gradlew" ] && [ -d "app" ]; entonces
+        DIRECTORIO_DESTINATARIO="."
+      elif [ -f "android-vel/gradlew" ] && [ -d "android-vel/app" ]; then
+        TARGET_DIR="android-vel"
+      elif [ -f "vel-android-nativo/gradlew" ] && [ -d "vel-android-nativo/app" ]; entonces
+        TARGET_DIR="vel-android-nativo"
+      demás
+        DESCUBRIDO=$(find . -name "gradlew" -not -path "*/node_modules/*" | head -n 1)
+        si [ -n "$DISCOVERED" ]; entonces
+          TARGET_DIR=$(dirname "$DISCOVERED")
+        demás
+          DIRECTORIO_DESTINATARIO="."
+        fi
+      fi
+      echo "Directorio de compilación: '$TARGET_DIR'"
+      echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
+      echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
+  - nombre : Verificar y asegurar wrapper de Gradle (propiedades y jar)
+    correr : |
+      WRAPPER_DIR="${{ env.ANDROID_DIR }}/gradle/wrapper"
+      mkdir -p "$WRAPPER_DIR"
+      PROPS_PATH="$WRAPPER_DIR/gradle-wrapper.properties"
+      if [ ! -f "$PROPS_PATH" ]; then
+        echo "AVISO: gradle-wrapper.properties no encontrado en $PROPS_PATH. Generando automáticamente..."
+        cat << 'EOF' > "$PROPS_PATH"
