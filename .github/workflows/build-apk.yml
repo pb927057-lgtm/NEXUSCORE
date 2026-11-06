@@ -45,18 +45,38 @@ jobs:
             fi
           fi
 
-          echo "Directorio seleccionado: '$TARGET_DIR'"
+          echo "Directorio de compilación: '$TARGET_DIR'"
           echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
           echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
 
-      - name: Verificar y asegurar binario de gradle-wrapper.jar
+      - name: Verificar y asegurar wrapper de Gradle (properties y jar)
         run: |
-          JAR_PATH="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.jar"
+          WRAPPER_DIR="${{ env.ANDROID_DIR }}/gradle/wrapper"
+          mkdir -p "$WRAPPER_DIR"
+
+          PROPS_PATH="$WRAPPER_DIR/gradle-wrapper.properties"
+          if [ ! -f "$PROPS_PATH" ]; then
+            echo "AVISO: gradle-wrapper.properties no encontrado en $PROPS_PATH. Generando automáticamente..."
+            cat << 'EOF' > "$PROPS_PATH"
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+            echo "gradle-wrapper.properties generado con éxito:"
+            cat "$PROPS_PATH"
+          else
+            echo "gradle-wrapper.properties verificado en: $PROPS_PATH"
+          fi
+
+          JAR_PATH="$WRAPPER_DIR/gradle-wrapper.jar"
           if [ -f "$JAR_PATH" ] && [ $(stat -c%s "$JAR_PATH" 2>/dev/null || stat -f%z "$JAR_PATH" 2>/dev/null || echo 0) -gt 1000 ]; then
             echo "gradle-wrapper.jar verificado correctamente en: $JAR_PATH"
           else
-            echo "Descargando versión oficial de Gradle 8.10.2..."
-            mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+            echo "AVISO: gradle-wrapper.jar ausente o incompleto. Descargando versión oficial de Gradle 8.10.2..."
             curl -sSL -o "$JAR_PATH" "https://raw.githubusercontent.com/gradle/gradle/v8.10.2/gradle/wrapper/gradle-wrapper.jar" || \
             curl -sSL -o "$JAR_PATH" "https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar"
             ls -la "$JAR_PATH"
