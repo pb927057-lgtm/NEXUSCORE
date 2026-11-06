@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Cancela automáticamente si pasa de 15 minutos para que no se quede colgado
 
     steps:
       - name: Checkout code
@@ -22,6 +23,9 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x gradlew
+
+      - name: Clean build cache
+        run: ./gradlew clean
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
