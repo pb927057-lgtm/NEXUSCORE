@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">VEL</string>
+    <string name="status_active">Suscripción Activa</string>
+    <string name="status_expired">Suscripción Vencida</string>
+    <string name="btn_sync">Sincronizar con Core</string>
+</resources>

@@ -1,0 +1,9 @@
+{
+  "email": "usuario@example.com",
+  "subscriptionStatus": "active",
+  "expiresAt": "2027-03-01T00:00:00Z",
+  "linkedDevices": {
+    "core_device_id_xyz": { "role": "CORE", "status": "active" },
+    "terminal_device_id_abc": { "role": "TERMINAL", "status": "active" }
+  }
+}

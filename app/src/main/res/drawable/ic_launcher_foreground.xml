@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Contorno exterior del escudo de seguridad VEL (Cyan #00CFE8) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00CFE8"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,26 L76,35 C76,58 54,76 54,82 C54,76 32,58 32,35 Z" />
+
+    <!-- Relleno interior de seguridad con tinte translúcido (Verde Seguridad #10B981) -->
+    <path
+        android:fillColor="#10B981"
+        android:fillAlpha="0.18"
+        android:pathData="M54,30 L72,38 C72,56 54,72 54,77 C54,72 36,56 36,38 Z" />
+
+    <!-- Núcleo criptográfico / Cerrojo central (Cyan #00CFE8) -->
+    <path
+        android:fillColor="#00CFE8"
+        android:pathData="M54,42 C50.5,42 47.7,44.8 47.7,48.3 C47.7,50.7 49.1,52.8 51.1,53.8 L49.5,63.5 L58.5,63.5 L56.9,53.8 C58.9,52.8 60.3,50.7 60.3,48.3 C60.3,44.8 57.5,42 54,42 Z" />
+</vector>
