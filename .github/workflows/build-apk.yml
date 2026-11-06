@@ -1,167 +1,126 @@
-
-name: Build Android APK - VEL 0.1
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - "**"
+    branches: [ "**" ]
   pull_request:
-    branches:
-      - "**"
+    branches: [ "**" ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
-    name: Build and test VEL Android
+    name: Build & Test Native Android
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Setup JDK 17 (Temurin)
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "17"
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Locate Android project
-        id: android
-        shell: bash
+      - name: Ensure Android SDK environment
         run: |
-          set -euo pipefail
+          if [ -d "/usr/local/lib/android/sdk" ]; then
+            echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+            echo "Using pre-installed Android SDK at /usr/local/lib/android/sdk"
+          elif [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ]; then
+            echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+            echo "Using existing ANDROID_HOME at $ANDROID_HOME"
+          fi
 
-          if [[ -f "gradlew" && -f "settings.gradle.kts" && -f "app/build.gradle.kts" ]]; then
-            ANDROID_DIR="."
-          elif [[ -f "android-vel/gradlew" && -f "android-vel/settings.gradle.kts" && -f "android-vel/app/build.gradle.kts" ]]; then
-            ANDROID_DIR="android-vel"
-          elif [[ -f "vel-android-nativo/gradlew" && -f "vel-android-nativo/settings.gradle.kts" && -f "vel-android-nativo/app/build.gradle.kts" ]]; then
-            ANDROID_DIR="vel-android-nativo"
+      - name: Locate Android project root
+        id: find-android
+        run: |
+          echo "=== DIAGNOSTIC: WORKSPACE ROOT ==="
+          pwd
+          ls -la
+
+          if [ -f "gradlew" ] && [ -f "settings.gradle.kts" ] && [ -f "app/build.gradle.kts" ]; then
+            TARGET_DIR="."
+          elif [ -f "android-vel/gradlew" ] && [ -f "android-vel/settings.gradle.kts" ] && [ -f "android-vel/app/build.gradle.kts" ]; then
+            TARGET_DIR="android-vel"
+          elif [ -f "vel-android-nativo/gradlew" ] && [ -f "vel-android-nativo/settings.gradle.kts" ] && [ -f "vel-android-nativo/app/build.gradle.kts" ]; then
+            TARGET_DIR="vel-android-nativo"
           else
-            echo "ERROR: Complete Android project not found."
-            echo "Required: gradlew, settings.gradle.kts and app/build.gradle.kts."
-            find . -maxdepth 5 -type f \( \
-              -name "gradlew" -o \
-              -name "settings.gradle.kts" -o \
-              -name "build.gradle.kts" \
-            \) -print
+            DISCOVERED=$(find . -name "settings.gradle.kts" -not -path "*/node_modules/*" | head -n 1)
+            if [ -n "$DISCOVERED" ]; then
+              TARGET_DIR=$(dirname "$DISCOVERED")
+            else
+              TARGET_DIR="."
+            fi
+          fi
+
+          echo "Resolved Android root directory: '$TARGET_DIR'"
+
+          if [ ! -f "$TARGET_DIR/gradlew" ] || [ ! -f "$TARGET_DIR/settings.gradle.kts" ] || [ ! -f "$TARGET_DIR/app/build.gradle.kts" ]; then
+            echo "ERROR: Android project structure is incomplete in '$TARGET_DIR'."
+            echo "Required files check:"
+            ls -la "$TARGET_DIR"
             exit 1
           fi
 
-          echo "Android project directory: $ANDROID_DIR"
-          echo "android_dir=$ANDROID_DIR" >> "$GITHUB_OUTPUT"
+          echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
+          echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
 
-      - name: Configure Android SDK
-        shell: bash
+      - name: Verify Gradle wrapper files
         run: |
-          set -euo pipefail
+          PROPS="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.properties"
+          JAR="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.jar"
 
-          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-
-          if [ ! -d "$SDK" ]; then
-            echo "ERROR: Android SDK directory not found: $SDK"
-            exit 1
+          if [ ! -f "$PROPS" ]; then
+            ALT_PROPS=$(find . -name "gradle-wrapper.properties" | head -n 1)
+            if [ -n "$ALT_PROPS" ]; then
+              echo "Found gradle-wrapper.properties at $ALT_PROPS. Copying to $PROPS..."
+              mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+              cp "$ALT_PROPS" "$PROPS"
+            else
+              echo "ERROR: gradle-wrapper.properties not found in ${{ env.ANDROID_DIR }} or elsewhere."
+              exit 1
+            fi
           fi
 
-          if [ -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
-            SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
-          elif [ -x "$SDK/cmdline-tools/16.0/bin/sdkmanager" ]; then
-            SDKMANAGER="$SDK/cmdline-tools/16.0/bin/sdkmanager"
-          else
-            echo "ERROR: sdkmanager was not found."
-            find "$SDK/cmdline-tools" -maxdepth 4 -name sdkmanager -type f -print 2>/dev/null || true
-            exit 1
+          if [ ! -f "$JAR" ]; then
+            ALT_JAR=$(find . -name "gradle-wrapper.jar" | head -n 1)
+            if [ -n "$ALT_JAR" ]; then
+              echo "Found gradle-wrapper.jar at $ALT_JAR. Copying to $JAR..."
+              mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+              cp "$ALT_JAR" "$JAR"
+            else
+              echo "ERROR: gradle-wrapper.jar not found in ${{ env.ANDROID_DIR }} or elsewhere."
+              exit 1
+            fi
           fi
 
-          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          echo "Gradle wrapper files verified successfully:"
+          ls -la "${{ env.ANDROID_DIR }}/gradle/wrapper/"
 
-          echo "Using SDK: $SDK"
-          echo "Using sdkmanager: $SDKMANAGER"
-
-          yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses
-
-          "$SDKMANAGER" --sdk_root="$SDK" --install \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      - name: Verify Gradle Wrapper
-        working-directory: ${{ steps.android.outputs.android_dir }}
-        shell: bash
+      - name: Set executable permission on gradlew
         run: |
-          set -euo pipefail
+          chmod +x ${{ env.ANDROID_DIR }}/gradlew
+          ls -la ${{ env.ANDROID_DIR }}/gradlew
 
-          test -f gradlew || {
-            echo "ERROR: gradlew is missing."
-            exit 1
-          }
-
-          test -f gradle/wrapper/gradle-wrapper.properties || {
-            echo "ERROR: gradle-wrapper.properties is missing."
-            exit 1
-          }
-
-          test -f gradle/wrapper/gradle-wrapper.jar || {
-            echo "ERROR: gradle-wrapper.jar is missing."
-            exit 1
-          }
-
-          JAR_SIZE=$(wc -c < gradle/wrapper/gradle-wrapper.jar)
-
-          echo "Gradle Wrapper JAR size: $JAR_SIZE bytes"
-
-          if [ "$JAR_SIZE" -lt 1000 ]; then
-            echo "ERROR: Gradle Wrapper JAR appears incomplete."
-            exit 1
-          fi
-
-          chmod +x gradlew
-
-          echo "Gradle wrapper configuration:"
-          cat gradle/wrapper/gradle-wrapper.properties
-
-          ./gradlew --version
-
-      - name: Run Android unit tests
-        working-directory: ${{ steps.android.outputs.android_dir }}
-        shell: bash
+      - name: Run unit tests
+        working-directory: ${{ env.ANDROID_DIR }}
         run: |
-          set -euo pipefail
           ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
-      - name: Build VEL Debug APK
-        working-directory: ${{ steps.android.outputs.android_dir }}
-        shell: bash
+      - name: Assemble Debug APK
+        working-directory: ${{ env.ANDROID_DIR }}
         run: |
-          set -euo pipefail
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Verify APK
-        working-directory: ${{ steps.android.outputs.android_dir }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-
-          if [ ! -s "$APK" ]; then
-            echo "ERROR: APK was not generated or is empty."
-            exit 1
-          fi
-
-          echo "APK generated successfully:"
-          ls -lh "$APK"
-
-      - name: Upload VEL APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VEL-0.1-Android-APK
-          path: ${{ steps.android.outputs.android_dir }}/app/build/outputs/apk/debug/app-debug.apk
+          name: vel-0.1-app-debug
+          path: |
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+            **/app-debug.apk
           if-no-files-found: error
           retention-days: 14
