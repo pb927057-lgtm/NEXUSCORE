@@ -1,0 +1,6 @@
+{
+  "name": "VEL — Sistema de Protección Criptográfica E2EE",
+  "description": "Aplicación de seguridad y protección de la información con dos dispositivos (VEL CORE y VEL Terminal), cifrado E2EE AES-GCM, Ktor WebSockets y confirmación autenticada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
