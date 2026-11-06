@@ -1,0 +1,126 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Test Native Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Ensure Android SDK environment
+        run: |
+          if [ -d "/usr/local/lib/android/sdk" ]; then
+            echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+            echo "Using pre-installed Android SDK at /usr/local/lib/android/sdk"
+          elif [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ]; then
+            echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+            echo "Using existing ANDROID_HOME at $ANDROID_HOME"
+          fi
+
+      - name: Locate Android project root
+        id: find-android
+        run: |
+          echo "=== DIAGNOSTIC: WORKSPACE ROOT ==="
+          pwd
+          ls -la
+
+          if [ -f "gradlew" ] && [ -f "settings.gradle.kts" ] && [ -f "app/build.gradle.kts" ]; then
+            TARGET_DIR="."
+          elif [ -f "android-vel/gradlew" ] && [ -f "android-vel/settings.gradle.kts" ] && [ -f "android-vel/app/build.gradle.kts" ]; then
+            TARGET_DIR="android-vel"
+          elif [ -f "vel-android-nativo/gradlew" ] && [ -f "vel-android-nativo/settings.gradle.kts" ] && [ -f "vel-android-nativo/app/build.gradle.kts" ]; then
+            TARGET_DIR="vel-android-nativo"
+          else
+            DISCOVERED=$(find . -name "settings.gradle.kts" -not -path "*/node_modules/*" | head -n 1)
+            if [ -n "$DISCOVERED" ]; then
+              TARGET_DIR=$(dirname "$DISCOVERED")
+            else
+              TARGET_DIR="."
+            fi
+          fi
+
+          echo "Resolved Android root directory: '$TARGET_DIR'"
+
+          if [ ! -f "$TARGET_DIR/gradlew" ] || [ ! -f "$TARGET_DIR/settings.gradle.kts" ] || [ ! -f "$TARGET_DIR/app/build.gradle.kts" ]; then
+            echo "ERROR: Android project structure is incomplete in '$TARGET_DIR'."
+            echo "Required files check:"
+            ls -la "$TARGET_DIR"
+            exit 1
+          fi
+
+          echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
+          echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
+
+      - name: Verify Gradle wrapper files
+        run: |
+          PROPS="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.properties"
+          JAR="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.jar"
+
+          if [ ! -f "$PROPS" ]; then
+            ALT_PROPS=$(find . -name "gradle-wrapper.properties" | head -n 1)
+            if [ -n "$ALT_PROPS" ]; then
+              echo "Found gradle-wrapper.properties at $ALT_PROPS. Copying to $PROPS..."
+              mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+              cp "$ALT_PROPS" "$PROPS"
+            else
+              echo "ERROR: gradle-wrapper.properties not found in ${{ env.ANDROID_DIR }} or elsewhere."
+              exit 1
+            fi
+          fi
+
+          if [ ! -f "$JAR" ]; then
+            ALT_JAR=$(find . -name "gradle-wrapper.jar" | head -n 1)
+            if [ -n "$ALT_JAR" ]; then
+              echo "Found gradle-wrapper.jar at $ALT_JAR. Copying to $JAR..."
+              mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+              cp "$ALT_JAR" "$JAR"
+            else
+              echo "ERROR: gradle-wrapper.jar not found in ${{ env.ANDROID_DIR }} or elsewhere."
+              exit 1
+            fi
+          fi
+
+          echo "Gradle wrapper files verified successfully:"
+          ls -la "${{ env.ANDROID_DIR }}/gradle/wrapper/"
+
+      - name: Set executable permission on gradlew
+        run: |
+          chmod +x ${{ env.ANDROID_DIR }}/gradlew
+          ls -la ${{ env.ANDROID_DIR }}/gradlew
+
+      - name: Run unit tests
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Assemble Debug APK
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vel-0.1-app-debug
+          path: |
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+            **/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

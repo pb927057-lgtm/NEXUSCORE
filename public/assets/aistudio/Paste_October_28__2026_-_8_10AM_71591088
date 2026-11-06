@@ -1,0 +1,1028 @@
+# VEL — ESPECIFICACIÓN MAESTRA DE INGENIERÍA
+## Aplicación Android nativa desde cero
+### Kotlin · Jetpack Compose · Ktor WebSockets · E2EE · AES-GCM · Autenticación · Revocación · Recuperación segura
+
+## INSTRUCCIÓN PRINCIPAL
+
+Construye VEL como un proyecto de software nuevo, con arquitectura definida, código organizado, interfaz especificada, seguridad diseñada y pruebas verificables.
+
+No continúes el proyecto antiguo. No importes automáticamente sus archivos, clases, repositorios ni configuraciones.
+
+Este documento contiene las decisiones funcionales, visuales y técnicas que debes respetar. No dependas de conversaciones anteriores, archivos que no se hayan incorporado al proyecto ni instrucciones implícitas.
+
+No sustituyas funcionalidades por simulaciones. No afirmes que una función está terminada si solo has creado su interfaz o su clase. No afirmes que has compilado, ejecutado, instalado o probado el proyecto si no has realizado esas operaciones.
+
+Cuando el entorno no permita ejecutar alguna tarea, identifica exactamente la limitación, conserva el trabajo realizado y proporciona el siguiente paso concreto.
+
+El proyecto debe avanzar hacia una aplicación Android funcional, no hacia una maqueta que solo parezca una aplicación.
+
+---
+
+# PARTE I. IDENTIDAD Y DISEÑO VISUAL
+
+## 1. Nombre y componentes
+
+Nombre del producto: VEL.
+
+Componentes:
+
+- VEL CORE: dispositivo custodio y autoridad de seguridad.
+- VEL Terminal: dispositivo móvil utilizado por el propietario.
+
+No utilices NEXUS como nombre visible de la nueva aplicación.
+
+Nombre de paquete propuesto: `com.vel.secure`.
+
+Utiliza este identificador de manera consistente en el proyecto, salvo que el entorno imponga una restricción técnica que obligue a modificarlo. Si se cambia, informa el motivo.
+
+Nombre visible de la aplicación: VEL.
+
+Idioma inicial: español.
+
+Formato de fechas: localización española.
+
+Diseña la interfaz pensando inicialmente en teléfonos Android y en una pantalla de aproximadamente 360–430 dp de ancho, con adaptación a otros tamaños y accesibilidad.
+
+## 2. Paleta cromática explícita
+
+La identidad visual debe ser tecnológica, sobria, moderna, reconocible y asociada a la protección de la información.
+
+Utiliza azul y turquesa sobre un fondo oscuro.
+
+Aplica esta paleta exacta en toda la aplicación:
+
+| Uso | Color HEX |
+|---|---|
+| Fondo principal | `#0B1220` |
+| Fondo de superficies y tarjetas | `#111B2E` |
+| Superficie elevada | `#17243A` |
+| Azul principal | `#3B82F6` |
+| Turquesa de identidad | `#22D3EE` |
+| Texto principal | `#F1F5F9` |
+| Texto secundario | `#94A3B8` |
+| Bordes y separadores | `#263449` |
+| Estado satisfactorio confirmado | `#34D399` |
+| Advertencia o estado pendiente | `#FBBF24` |
+| Error o rechazo | `#F87171` |
+
+No cambies estos valores por iniciativa propia.
+
+El azul principal se utiliza para acciones primarias. El turquesa identifica la marca, los elementos destacados y los indicadores tecnológicos. Los colores de estado solo se utilizan para comunicar estados reales.
+
+No utilices el verde para sugerir que una operación fue exitosa cuando todavía no ha sido confirmada.
+
+Mantén contraste suficiente entre texto y fondo. No uses texto diminuto, elementos excesivamente brillantes ni gradientes que dificulten la lectura.
+
+Define los colores como recursos centralizados del tema de Jetpack Compose. No repitas códigos HEX arbitrariamente por toda la aplicación.
+
+## 3. Logotipo de VEL
+
+Diseña un logotipo vectorial original y sencillo, adecuado para una aplicación de seguridad.
+
+Concepto:
+
+- Una línea tecnológica conecta dos puntos.
+- La trayectoria de la línea forma o acompaña una letra V.
+- La línea puede curvarse por debajo de la V para expresar conexión entre dos dispositivos.
+- El nombre VEL aparece con tipografía sans serif moderna, clara y geométrica.
+- El azul y el turquesa son los colores principales.
+- El símbolo debe seguir siendo reconocible en tamaños pequeños.
+
+Crea dos versiones:
+
+1. Logotipo completo con símbolo y palabra VEL.
+2. Icono simplificado para el lanzador Android.
+
+El icono debe funcionar sobre un fondo oscuro y también en los tamaños pequeños del sistema.
+
+Utiliza un vector XML, un recurso vectorial de Compose o un SVG convertido a un recurso Android compatible. No dependas de una URL externa para cargar el logotipo.
+
+No inventes que se está utilizando un archivo gráfico anterior: si el recurso original no está disponible, implementa el diseño descrito en esta especificación.
+
+## 4. Pantalla de bienvenida
+
+La bienvenida aparece al abrir la aplicación.
+
+Debe contener:
+
+- Fondo `#0B1220`.
+- Logotipo de VEL centrado.
+- Símbolo azul y turquesa.
+- Nombre VEL claramente visible.
+- Una frase breve: «Protección de la información».
+- Animación de entrada discreta y breve, opcional si no perjudica el rendimiento.
+- Transición hacia la pantalla inicial.
+
+No muestres mensajes que prometan seguridad absoluta.
+
+No obligues al usuario a esperar una animación. La bienvenida debe ser rápida y accesible.
+
+No reproduzcas la bienvenida innecesariamente cada vez que el usuario regrese de otra pantalla.
+
+## 5. Tipografía y componentes
+
+Utiliza una tipografía sans serif del sistema Android, con jerarquía visual coherente.
+
+Define tamaños de texto consistentes para:
+
+- Título principal.
+- Títulos de sección.
+- Texto normal.
+- Texto secundario.
+- Etiquetas de estado.
+- Mensajes de error.
+
+Los controles deben tener áreas táctiles adecuadas, estados de foco y selección visibles y etiquetas accesibles.
+
+Utiliza tarjetas oscuras, bordes discretos y botones claros.
+
+No uses colores como sustituto del texto de estado: cada estado importante debe tener una descripción escrita.
+
+---
+
+# PARTE II. FINALIDAD Y PRINCIPIOS DE VEL
+
+## 6. Objetivo funcional
+
+VEL es una aplicación de protección de la información personal basada en dos dispositivos Android que pueden encontrarse físicamente separados.
+
+VEL CORE conserva la autoridad sobre las autorizaciones y las operaciones protegidas.
+
+VEL Terminal se utiliza desde el teléfono móvil del propietario para comunicarse con CORE de manera autenticada y cifrada.
+
+Principio rector:
+
+**VEL protege la información; no es un servicio de almacenamiento de datos personales en la nube.**
+
+VEL no debe almacenar fotografías, registros de llamadas ni otros contenidos personales en un servidor.
+
+No debe crear copias de seguridad de dichos contenidos ni recopilar perfiles personales innecesarios.
+
+No debe utilizar el número telefónico, la SIM, los SMS ni una cuenta de Google como autoridad exclusiva para permitir el acceso.
+
+No prometas que un dispositivo queda completamente protegido frente a cualquier atacante. Describe con precisión qué riesgos cubre la implementación.
+
+## 7. Límites de seguridad
+
+La seguridad debe estar incorporada en la arquitectura.
+
+No consideres suficiente:
+
+- Ocultar una pantalla.
+- Guardar una contraseña en una variable.
+- Cifrar únicamente la conexión TLS.
+- Añadir AES-GCM sin establecer correctamente las claves.
+- Crear un token sin comprobar su validez y revocación.
+- Recibir una respuesta del servidor y tratarla como una confirmación del CORE.
+- Mostrar una operación como completada porque se ha pulsado un botón.
+
+Cada operación sensible debe comprobar autenticación, autorización, integridad y resultado.
+
+---
+
+# PARTE III. ARQUITECTURA DEL SISTEMA
+
+## 8. Componentes
+
+Construye dos proyectos separados:
+
+**Proyecto A: aplicación Android VEL**
+
+Tecnologías:
+
+- Kotlin.
+- Android SDK.
+- Jetpack Compose.
+- Material 3.
+- Android Keystore.
+- `javax.crypto`.
+- Ktor Client WebSockets.
+- Room para persistencia local estrictamente necesaria.
+- Coroutines y Flow.
+- Pruebas unitarias y de integración.
+
+**Proyecto B: servidor de relevo VEL**
+
+Tecnologías:
+
+- Kotlin.
+- Ktor Server.
+- Ktor WebSockets.
+- WSS en producción.
+- Autenticación de conexiones.
+- Gestión mínima del estado de dispositivos.
+- Reenvío de mensajes cifrados.
+- Política de revocación y control de sesiones.
+
+El servidor no debe contener las claves privadas de CORE ni de Terminal.
+
+No incluyas todo el servidor dentro de la aplicación Android.
+
+Mantén las configuraciones, dependencias y procedimientos de ejecución separados.
+
+## 9. Separación de responsabilidades
+
+Organiza el proyecto Android con módulos o paquetes claros. Como mínimo, contempla:
+
+- `ui`
+- `navigation`
+- `domain`
+- `data`
+- `security`
+- `crypto`
+- `authentication`
+- `device`
+- `pairing`
+- `revocation`
+- `transport`
+- `diagnostics`
+
+Puedes ajustar los nombres si la arquitectura final lo exige, pero cada responsabilidad debe tener un lugar definido.
+
+Evita clases gigantes que mezclen interfaz, criptografía, red y persistencia.
+
+No crees capas vacías solo para aparentar una arquitectura avanzada.
+
+## 10. Fuente de autoridad
+
+CORE es la autoridad principal para aprobar, revocar y gestionar los dispositivos.
+
+El servidor administra el transporte y aplica los controles técnicos de acceso que le correspondan.
+
+El servidor no puede aprobar por sí solo una vinculación nueva ni convertir un dispositivo desconocido en autorizado.
+
+La aplicación debe diferenciar claramente la autoridad del CORE, el estado observado por el servidor y el estado local de cada dispositivo.
+
+---
+
+# PARTE IV. PANTALLAS Y NAVEGACIÓN
+
+## 11. Flujo inicial
+
+La navegación debe seguir este orden:
+
+1. Bienvenida VEL.
+2. Pantalla inicial.
+3. Selección del modo CORE o Terminal, cuando todavía no se haya configurado el dispositivo.
+4. Procedimiento de configuración del rol.
+5. Pantalla principal del rol seleccionado.
+
+No permitas que cambiar visualmente de rol otorgue privilegios de seguridad.
+
+El rol configurado debe quedar asociado al estado local y a la identidad criptográfica creada para ese dispositivo.
+
+Los cambios de rol posteriores deben requerir un procedimiento explícito y seguro, no una simple modificación de una etiqueta.
+
+## 12. Pantalla inicial y selección de rol
+
+La pantalla debe presentar VEL y explicar brevemente sus dos componentes.
+
+Incluye dos tarjetas:
+
+**VEL CORE**
+
+Descripción: «Dispositivo custodio y autoridad de seguridad».
+
+Acción: «Configurar como CORE».
+
+**VEL Terminal**
+
+Descripción: «Dispositivo móvil para conexión segura con CORE».
+
+Acción: «Configurar como Terminal».
+
+Utiliza el azul para la acción primaria y el turquesa para los detalles de identidad visual.
+
+No marques ninguno como configurado hasta completar los pasos necesarios.
+
+## 13. Inicio de VEL CORE
+
+Debe mostrar:
+
+- Identificación del rol.
+- Estado local de seguridad.
+- Estado de conexión al servidor.
+- Estado de autorización de dispositivos.
+- Lista de dispositivos autorizados.
+- Acceso a vinculación.
+- Acceso a revocación.
+- Acceso a diagnóstico.
+- Acceso a configuración.
+
+No inventes dispositivos conectados ni muestres datos de ejemplo como reales.
+
+## 14. Inicio de VEL Terminal
+
+Debe mostrar:
+
+- Identificación del rol.
+- Estado de vinculación.
+- Estado de autenticación.
+- Estado del canal de comunicación.
+- Estado de autorización.
+- Acceso a las operaciones disponibles.
+- Estado de confirmación de solicitudes.
+- Acceso a diagnóstico.
+
+Si no existe vinculación, muestra el procedimiento para vincular el dispositivo.
+
+Si el dispositivo está revocado, bloquea las operaciones protegidas y muestra el motivo.
+
+## 15. Pantalla de dispositivos
+
+En CORE, presenta los dispositivos registrados con:
+
+- Identificador técnico.
+- Estado de autorización.
+- Fecha de vinculación, si está disponible.
+- Estado de conexión conocido.
+- Acción para consultar detalles.
+- Acción para revocar.
+
+No muestres claves privadas, tokens completos ni secretos.
+
+No confundas «conectado al servidor» con «autorizado por CORE».
+
+## 16. Pantalla de vinculación
+
+Debe mostrar los pasos necesarios para vincular un Terminal nuevo.
+
+La vinculación no se completa solo por abrir una pantalla o escanear un código.
+
+Debe requerir autenticación mutua, aprobación de CORE y establecimiento seguro de claves.
+
+Muestra el estado real de cada paso y permite cancelar el procedimiento sin dejar una autorización parcial.
+
+## 17. Pantalla de revocación
+
+Incluye la opción:
+
+«Cambiar contraseña y revocar dispositivos autorizados».
+
+La pantalla debe identificar el dispositivo seleccionado, explicar las consecuencias y pedir confirmación explícita.
+
+Después de iniciar la operación, muestra el estado real: pendiente, confirmado, rechazado o incierto.
+
+No muestres éxito antes de recibir y validar la confirmación correspondiente.
+
+## 18. Diagnóstico y configuración
+
+El diagnóstico debe mostrar únicamente información técnica no sensible:
+
+- Conectividad.
+- Estado del WebSocket.
+- Estado de autenticación.
+- Versión del protocolo.
+- Errores técnicos.
+- Último resultado confirmado, cuando exista.
+
+No muestres claves, tokens, contenido de mensajes ni datos personales.
+
+La configuración debe incluir únicamente opciones implementadas y necesarias.
+
+---
+
+# PARTE V. IDENTIDAD CRIPTOGRÁFICA Y VINCULACIÓN
+
+## 19. Identidad de cada dispositivo
+
+Cada dispositivo debe generar una identidad criptográfica propia.
+
+Utiliza Android Keystore para proteger las claves privadas cuando sea compatible.
+
+No exportes las claves privadas.
+
+No transmitas claves privadas por WebSocket.
+
+No almacenes claves en texto plano.
+
+La identidad debe estar separada de los identificadores de interfaz y de los datos del usuario.
+
+## 20. Vinculación autenticada
+
+Implementa un protocolo de vinculación con estas propiedades:
+
+1. CORE inicia o aprueba el proceso.
+2. Terminal genera su identidad criptográfica.
+3. Ambos dispositivos verifican las identidades y el contexto de la vinculación.
+4. CORE aprueba explícitamente el dispositivo.
+5. Se establece una clave de sesión segura.
+6. Se genera la autorización específica del dispositivo.
+7. Se registra el resultado.
+8. Ambos dispositivos verifican la finalización.
+
+Utiliza un mecanismo de emparejamiento autenticado. Una opción es un código QR de un solo uso generado por CORE y escaneado por Terminal, acompañado de confirmación explícita en CORE.
+
+El código debe ser aleatorio, de corta duración, de un solo uso y no debe contener una clave privada ni una clave de sesión reutilizable.
+
+El procedimiento debe evitar la sustitución de claves y los ataques de intermediario.
+
+Si se utiliza una alternativa al QR, documenta el mecanismo de autenticación equivalente y sus propiedades de seguridad.
+
+No permitas que un dispositivo se vincule únicamente por conocer un identificador público.
+
+---
+
+# PARTE VI. CIFRADO DE EXTREMO A EXTREMO
+
+## 21. API criptográfica obligatoria
+
+Implementa explícitamente el cifrado E2EE mediante la API criptográfica nativa disponible en Android:
+
+`javax.crypto`
+
+Utiliza:
+
+`AES/GCM/NoPadding`
+
+No sustituyas este requisito por cifrado exclusivamente TLS ni por una simulación.
+
+## 22. Flujo de cifrado
+
+Antes de transmitir una operación sensible:
+
+1. Terminal comprueba el estado de autorización.
+2. Terminal identifica el destinatario.
+3. Terminal obtiene la clave de sesión válida.
+4. Terminal construye el mensaje autenticado.
+5. Terminal cifra el contenido con AES-GCM.
+6. Terminal transmite el mensaje cifrado por Ktor WebSocket.
+7. El servidor retransmite los bytes cifrados.
+8. CORE recibe el mensaje.
+9. CORE verifica la identidad, el estado de autorización y la autenticidad criptográfica.
+10. CORE descifra el contenido localmente.
+11. CORE valida la operación antes de ejecutarla.
+
+No ejecutes solicitudes cuyo cifrado o autenticación sean inválidos.
+
+## 23. Parámetros criptográficos
+
+Utiliza, cuando sea compatible:
+
+- AES-256.
+- GCM.
+- Nonce de 96 bits.
+- Etiqueta de autenticación de 128 bits.
+- Datos autenticados adicionales (AAD).
+- Claves de sesión con separación de funciones.
+
+Cada nonce debe ser único para una misma clave. Debe existir una estrategia definida para evitar reutilizaciones incluso después de reinicios o reconexiones.
+
+No generes un nonce fijo.
+
+No reutilices un nonce por comodidad.
+
+No incluyas claves predeterminadas en el código.
+
+## 24. Establecimiento y derivación de claves
+
+El establecimiento de claves debe ser independiente del cifrado de mensajes.
+
+Utiliza un intercambio de claves autenticado con criptografía asimétrica compatible con Android, como ECDH con parámetros seguros y compatibles con el dispositivo.
+
+Protege las claves privadas mediante Android Keystore cuando corresponda.
+
+Autentica las claves públicas durante la vinculación.
+
+Deriva claves de sesión mediante una función segura, como HKDF basada en HMAC-SHA-256, cuando sea apropiado.
+
+Utiliza claves diferentes para cada dirección y finalidad cuando el diseño del protocolo lo requiera.
+
+Incluye contexto de protocolo, identidades de los dispositivos y material de sesión en la derivación para evitar que las claves se reutilicen en contextos distintos.
+
+No inventes algoritmos criptográficos propios.
+
+Si la API o el dispositivo no admite una característica, utiliza una alternativa compatible y documentada, o informa de que el dispositivo no cumple el requisito. No elimines silenciosamente una protección.
+
+## 25. Servidor incapaz de descifrar
+
+El servidor debe recibir y retransmitir el mensaje cifrado.
+
+No debe disponer de la clave simétrica de sesión ni de las claves privadas de los dispositivos.
+
+No debe recibir el contenido sensible en texto claro.
+
+El servidor no debe descifrar los mensajes para inspeccionarlos.
+
+WSS protege el transporte entre cada cliente y el servidor, pero no sustituye el cifrado de extremo a extremo entre los dispositivos.
+
+Prueba que el contenido enviado por el servidor sigue cifrado y que el servidor no posee las claves necesarias para descifrarlo.
+
+---
+
+# PARTE VII. AUTENTICACIÓN POR TOKEN Y AUTORIZACIÓN
+
+## 26. Token individual
+
+Implementa un sistema de autorización administrado por CORE.
+
+Cada Terminal autorizado debe disponer de:
+
+- Identificador único.
+- Identidad criptográfica.
+- Token de autorización individual cuando corresponda.
+- Asociación con su identidad y clave pública.
+- Estado de autorización.
+- Información mínima necesaria para verificar la vigencia.
+
+El token debe ser aleatorio, impredecible, individual y protegido.
+
+No uses un token fijo para toda la aplicación.
+
+No guardes tokens en logs.
+
+No incluyas tokens de producción en el código fuente.
+
+El token no debe ser suficiente por sí solo para suplantar un dispositivo. Vincula la autorización con la identidad criptográfica y exige autenticación del dispositivo.
+
+## 27. Validación
+
+Antes de ejecutar una operación sensible, CORE debe comprobar:
+
+- Que el dispositivo existe.
+- Que su identidad criptográfica es válida.
+- Que sigue autorizado.
+- Que no está revocado.
+- Que la solicitud es auténtica.
+- Que la solicitud no es una repetición inválida.
+- Que la operación está permitida.
+
+El servidor también debe aplicar los controles de acceso y revocación que correspondan a sus funciones.
+
+La validación debe ejecutarse en cada operación protegida, no solo al abrir el WebSocket.
+
+## 28. Renovación y expiración
+
+Define una política explícita de vigencia de credenciales.
+
+Cuando un token expire o necesite renovación, el dispositivo debe autenticarse mediante un procedimiento seguro.
+
+No permitas que un dispositivo revocado renueve su autorización usando credenciales antiguas.
+
+No utilices la renovación automática como una forma de eludir el control de CORE.
+
+---
+
+# PARTE VIII. ROBO, PÉRDIDA Y REVOCACIÓN
+
+## 29. Acción principal de CORE
+
+Implementa la función:
+
+«Cambiar contraseña y revocar dispositivos autorizados».
+
+Debe permitir que el propietario, desde CORE, seleccione y revoque el Terminal perdido o robado.
+
+La operación requiere autenticación fuerte del propietario y confirmación explícita.
+
+## 30. Procedimiento de revocación
+
+Al confirmar la revocación:
+
+1. CORE valida la autenticación del propietario.
+2. CORE identifica el dispositivo.
+3. CORE cambia su estado de autorización local a revocado.
+4. CORE invalida el token asociado.
+5. CORE invalida las sesiones y credenciales de autorización anteriores.
+6. CORE impide nuevas operaciones protegidas del dispositivo.
+7. CORE comunica la revocación al servidor mediante un canal autenticado.
+8. El servidor actualiza su estado de autorización.
+9. El servidor rechaza nuevas solicitudes del dispositivo revocado.
+10. El sistema obtiene las confirmaciones verificables que sean posibles.
+11. La interfaz presenta el resultado real.
+
+No consideres suficiente cerrar una conexión WebSocket. El dispositivo debe perder la autorización para las operaciones protegidas.
+
+No confíes únicamente en una lista local de dispositivos que pueda estar desactualizada.
+
+## 31. Límite de conectividad
+
+La revocación debe ser inmediata en la autoridad que la ejecuta.
+
+Si el servidor está conectado y recibe la actualización autenticada, debe aplicar la revocación tan pronto como la valide.
+
+No afirmes que un dispositivo completamente desconectado ha recibido la revocación.
+
+Cuando una confirmación remota no llegue, distingue entre revocación local realizada y propagación remota pendiente.
+
+El dispositivo revocado no debe recuperar el acceso mediante credenciales antiguas.
+
+Si no se puede confirmar que una operación sensible está autorizada, no debe ejecutarse de manera insegura.
+
+---
+
+# PARTE IX. REEMPLAZO Y RECUPERACIÓN
+
+## 32. Nuevo Terminal
+
+El propietario debe poder registrar un nuevo Terminal después de perder el anterior.
+
+El procedimiento debe incluir:
+
+1. Inicio desde CORE.
+2. Generación de una nueva identidad criptográfica.
+3. Autenticación mutua.
+4. Aprobación del propietario.
+5. Generación de una autorización nueva.
+6. Creación de nuevas claves de sesión.
+7. Registro del identificador del dispositivo sustituto.
+8. Confirmación autenticada.
+9. Rechazo de credenciales anteriores.
+10. Actualización de los dispositivos autorizados.
+
+No reutilices las claves privadas ni el token del dispositivo perdido.
+
+No permitas que la SIM, el número telefónico o un SMS sustituyan la aprobación de CORE.
+
+Si CORE está desconectado, no declares completada la vinculación remota.
+
+## 33. Recuperación sin estados contradictorios
+
+Utiliza identificadores únicos de operación e idempotencia.
+
+Si se interrumpe la comunicación durante una vinculación o revocación, el sistema debe poder determinar el estado real antes de repetir la operación.
+
+No crees dos dispositivos autorizados por repetir una solicitud.
+
+No restaures autorizaciones revocadas debido a una respuesta antigua.
+
+---
+
+# PARTE X. CONFIRMACIÓN CIFRADA DE EJECUCIÓN
+
+## 34. Confirmación de CORE
+
+Cada operación sensible que requiera ejecución por CORE debe tener una confirmación autenticada.
+
+Después de recibir y validar una solicitud, CORE debe determinar si:
+
+- La operación se ejecutó.
+- La operación fue rechazada.
+- La operación no pudo ejecutarse.
+- El resultado es incierto.
+
+CORE debe construir una respuesta que incluya:
+
+- Identificador único de la solicitud original.
+- Tipo de operación.
+- Identificador del dispositivo solicitante.
+- Identificador de CORE.
+- Resultado real.
+- Estado de ejecución.
+- Datos mínimos para asociar la respuesta con la solicitud correcta.
+
+## 35. Protección de la respuesta
+
+CORE debe cifrar la respuesta con AES-GCM mediante la clave de sesión válida.
+
+La autenticidad de la respuesta debe verificarse criptográficamente.
+
+Terminal debe:
+
+1. Recibir la respuesta.
+2. Validar el contexto.
+3. Verificar la autenticidad.
+4. Descifrarla.
+5. Comprobar el identificador de solicitud.
+6. Comprobar el tipo de operación.
+7. Verificar el estado.
+8. Mostrar el resultado solo después de validar todo lo anterior.
+
+No aceptes una respuesta del servidor como prueba de ejecución.
+
+No aceptes confirmaciones falsas, repetidas o asociadas a otra solicitud.
+
+## 36. Estados visibles
+
+Utiliza estos estados:
+
+- Preparando solicitud.
+- Enviada.
+- Recibida por el servidor.
+- Pendiente de confirmación de CORE.
+- Ejecutada y confirmada.
+- Rechazada.
+- No ejecutada, cuando esté demostrado.
+- Resultado incierto.
+- Error de comunicación.
+
+No confundas entrega con ejecución.
+
+Si se pierde la conexión después del envío, no asumas que la operación fracasó ni que tuvo éxito.
+
+Consulta el estado mediante un procedimiento seguro antes de repetir una operación que pueda producir efectos duplicados.
+
+---
+
+# PARTE XI. ERRORES Y OPERACIÓN SEGURA
+
+## 37. Desconexiones
+
+La aplicación debe detectar:
+
+- Falta de conexión a Internet.
+- Fallo al abrir WebSocket.
+- Desconexión inesperada.
+- Tiempo de espera agotado.
+- Respuesta inválida.
+- Fallo criptográfico.
+- Token inválido o revocado.
+- CORE desconectado.
+- Servidor inaccesible.
+- Confirmación ausente.
+- Resultado incierto.
+
+Presenta mensajes claros en español.
+
+No ocultes los errores.
+
+No guardes contenido sensible pendiente para enviarlo posteriormente.
+
+Conserva únicamente el estado técnico mínimo para permitir un reintento seguro.
+
+## 38. Reconexión
+
+Implementa una política controlada de reconexión.
+
+La reconexión no debe reactivar automáticamente credenciales revocadas.
+
+Después de reconectar, vuelve a comprobar la identidad, el estado de autorización y la validez de la sesión.
+
+No reutilices claves o nonces de forma insegura.
+
+No repitas operaciones automáticamente si no puede determinarse si ya se ejecutaron.
+
+---
+
+# PARTE XII. PERSISTENCIA Y PRIVACIDAD
+
+## 39. Datos locales
+
+Utiliza Room solo cuando exista una necesidad concreta.
+
+La persistencia local puede incluir estados técnicos, identificadores de solicitud y registros mínimos.
+
+No almacenes innecesariamente mensajes descifrados, claves privadas ni tokens en texto plano.
+
+Utiliza Android Keystore para proteger las claves cuando sea compatible.
+
+## 40. Datos del servidor
+
+El servidor debe conservar la mínima información necesaria para gestionar conexiones y autorización.
+
+No debe almacenar fotografías, registros de llamadas ni contenido personal.
+
+No debe mantener colas persistentes de mensajes sensibles.
+
+No debe registrar claves, tokens, contenido de mensajes ni respuestas descifradas.
+
+No afirmes que el servidor no conserva ningún dato si el proveedor de infraestructura genera registros propios que no han sido revisados.
+
+Documenta la información técnica que sí necesita conservarse, su finalidad y su retención.
+
+No incorpores una base de datos externa por comodidad. Justifica técnicamente cualquier persistencia adicional antes de introducirla.
+
+---
+
+# PARTE XIII. SEGURIDAD ANDROID Y CICLO DE VIDA
+
+## 41. Seguridad de la aplicación
+
+Implementa controles adecuados para:
+
+- Proteger las claves.
+- Evitar secretos en el código fuente.
+- Evitar filtraciones en logs.
+- Gestionar permisos mínimos.
+- Manejar el ciclo de vida de Android.
+- Evitar operaciones sensibles en segundo plano sin autorización.
+- Gestionar la expiración de sesiones.
+- Evitar que una pantalla o un cambio de rol conceda privilegios.
+- Manejar estados restaurados sin recuperar autorizaciones obsoletas.
+
+No prometas que la aplicación puede ejecutar tareas de red continuamente en segundo plano sin restricciones. Ten en cuenta los límites de batería, Doze y las políticas de Android.
+
+La pérdida de conectividad debe producir estados claros, no confirmaciones ficticias.
+
+## 42. Gestión de secretos
+
+No incluyas secretos de producción en:
+
+- Código Kotlin.
+- Recursos.
+- Archivos de configuración públicos.
+- Logs.
+- Capturas de pantalla de diagnóstico.
+- Mensajes de error.
+
+No compartas claves entre instalaciones.
+
+No utilices valores de prueba en producción.
+
+---
+
+# PARTE XIV. PRUEBAS
+
+## 43. Pruebas unitarias
+
+Incluye pruebas para:
+
+- Cifrado y descifrado AES-GCM.
+- Mensajes modificados.
+- Nonces inválidos o repetidos.
+- Autenticación de identidad.
+- Tokens inválidos.
+- Tokens revocados.
+- Identificadores de solicitud.
+- Respuestas repetidas.
+- Asociación entre solicitud y confirmación.
+- Validación de estados.
+- Reintentos e idempotencia.
+
+## 44. Pruebas de integración
+
+Incluye pruebas para:
+
+- Cliente Ktor WebSocket.
+- Servidor Ktor.
+- Autenticación de conexiones.
+- Intercambio de mensajes cifrados.
+- Desconexión y reconexión.
+- CORE no disponible.
+- Revocación y rechazo de credenciales.
+- Vinculación de un nuevo Terminal.
+- Confirmación de ejecución.
+- Respuestas falsas o inválidas.
+- Servidor sin acceso a las claves de cifrado.
+
+## 45. Pruebas con dispositivos reales
+
+Define un procedimiento para probar dos dispositivos Android:
+
+1. Configurar uno como CORE.
+2. Configurar otro como Terminal.
+3. Vincularlos de forma segura.
+4. Establecer una sesión criptográfica.
+5. Enviar una solicitud.
+6. Verificar que el servidor retransmite contenido cifrado.
+7. Comprobar la ejecución en CORE.
+8. Verificar la confirmación en Terminal.
+9. Revocar Terminal.
+10. Comprobar el rechazo de nuevas operaciones.
+11. Vincular un dispositivo sustituto.
+12. Comprobar que las credenciales anteriores no funcionan.
+
+No declares que estas pruebas se realizaron si solo se han escrito sus casos.
+
+---
+
+# PARTE XV. CONSTRUCCIÓN Y ENTREGA
+
+## 46. Proyecto Android
+
+Genera todos los archivos necesarios para un proyecto Android coherente:
+
+- Configuración Gradle.
+- Plugin de Android.
+- Kotlin.
+- Dependencias.
+- Manifiesto.
+- Recursos de interfaz.
+- Tema visual.
+- Navegación.
+- Persistencia.
+- Seguridad.
+- Criptografía.
+- Autenticación.
+- Transporte.
+- Revocación.
+- Pruebas.
+
+No dejes archivos importantes mencionados en la documentación pero ausentes del proyecto.
+
+No generes clases vacías que den la impresión de que una función está implementada.
+
+## 47. Proyecto servidor
+
+Genera el proyecto Ktor independiente:
+
+- Configuración Gradle.
+- Servidor WebSocket.
+- WSS preparado para producción.
+- Autenticación de conexiones.
+- Validación de autorizaciones.
+- Gestión de dispositivos.
+- Revocación.
+- Reenvío de mensajes cifrados.
+- Manejo de errores.
+- Configuración externa de secretos.
+- Pruebas.
+
+No afirmes que el servidor está desplegado por haber generado su código.
+
+Documenta las variables de configuración necesarias y cómo ejecutarlo en un entorno de prueba.
+
+## 48. Compilación
+
+No declares que la aplicación está compilada hasta ejecutar el proceso de compilación y obtener un resultado verificable.
+
+Si el entorno permite compilar:
+
+1. Ejecuta la compilación.
+2. Corrige los errores.
+3. Ejecuta las pruebas disponibles.
+4. Registra los resultados.
+5. Identifica las limitaciones pendientes.
+
+Si el entorno no permite compilar, entrega el proyecto y explica un procedimiento concreto para compilarlo en un entorno compatible.
+
+No afirmes que existe una APK hasta que el archivo se haya generado realmente.
+
+---
+
+# PARTE XVI. MÉTODO DE EJECUCIÓN
+
+## 49. Secuencia de trabajo
+
+Trabaja dentro de un único proyecto nuevo de Google AI Studio.
+
+Sigue esta secuencia:
+
+**Fase 1 — Base Android**
+
+Crea el proyecto Kotlin, la configuración Gradle, el tema visual, el logotipo, la bienvenida, la selección de rol y la navegación básica.
+
+**Fase 2 — Estado y persistencia**
+
+Implementa los modelos, el estado de aplicación y la persistencia local estrictamente necesaria.
+
+**Fase 3 — Identidad y vinculación**
+
+Implementa la identidad criptográfica, el procedimiento de vinculación y el establecimiento de claves.
+
+**Fase 4 — E2EE**
+
+Implementa AES-GCM, el formato de mensajes, la autenticación criptográfica y las pruebas.
+
+**Fase 5 — Comunicación**
+
+Implementa el cliente Ktor WebSocket y el servidor intermediario.
+
+**Fase 6 — Autorización y revocación**
+
+Implementa los tokens individuales, el control de autorización y la revocación.
+
+**Fase 7 — Confirmaciones**
+
+Implementa las respuestas cifradas y autenticadas de CORE y su verificación en Terminal.
+
+**Fase 8 — Pruebas e integración**
+
+Integra las funciones y ejecuta las pruebas posibles.
+
+**Fase 9 — Entrega**
+
+Presenta el estado verificable del proyecto, los archivos generados, los resultados de pruebas y las tareas que requieran un entorno externo.
+
+Estas fases son una secuencia de construcción dentro de un mismo proyecto, no una autorización para generar aplicaciones independientes o cambiar la arquitectura en cada etapa.
+
+## 50. Reglas permanentes
+
+- No reinicies la planificación general en cada fase.
+- No cambies el diseño visual establecido.
+- No inventes funciones.
+- No simules seguridad.
+- No ocultes errores.
+- No declares terminadas funciones no probadas.
+- No introduzcas servicios pagos sin autorización.
+- No cambies el nombre VEL.
+- No mezcles el código antiguo con el nuevo automáticamente.
+- No dejes decisiones de seguridad críticas sin documentar.
+- No sustituyas funciones reales por botones decorativos.
+- No confundas la recepción de un mensaje con su ejecución.
+- No confundas una prueba unitaria con una prueba entre dos dispositivos.
+
+Si existe una decisión indispensable que no puede resolverse con esta especificación, identifica exactamente la decisión y su impacto. No inventes una solución y la presentes como aprobada.
+
+## 51. Informe final obligatorio
+
+Al finalizar cada etapa importante, informa brevemente:
+
+- Archivos creados o modificados.
+- Funciones realmente implementadas.
+- Funciones todavía simuladas.
+- Errores detectados.
+- Pruebas ejecutadas.
+- Resultado real de cada prueba.
+- Infraestructura que falta.
+- Próxima tarea concreta.
+
+Al concluir, entrega un informe completo que distinga claramente entre implementado, probado, pendiente y no verificado.
+
+## OBJETIVO FINAL
+
+Construir VEL desde cero con una identidad visual explícita, una aplicación Android nativa, comunicación remota mediante Ktor WebSockets, cifrado E2EE mediante `javax.crypto` y AES-GCM, autenticación individual por dispositivo, revocación ante robo o pérdida, vinculación segura de un nuevo Terminal y confirmaciones cifradas y autenticadas de ejecución.
+
+La aplicación debe mantener la privacidad como principio arquitectónico y demostrar su funcionamiento mediante código, pruebas y resultados verificables.
+
+No basta con que VEL parezca terminada. Debe quedar claro qué funciona realmente y qué falta para ponerla en servicio.

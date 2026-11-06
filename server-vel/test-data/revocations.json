@@ -1,0 +1,8 @@
+[
+  {
+    "terminalId": "VEL-TERM-TEST-01",
+    "revokedByCoreId": "VEL-CORE-TEST-01",
+    "revokedAt": 1793747140071,
+    "reason": "Revocado por el usuario desde CORE"
+  }
+]
