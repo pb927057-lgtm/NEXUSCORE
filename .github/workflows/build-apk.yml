@@ -1,38 +1,88 @@
-name: Build Android APK
+name: Android CI/CD - VEL 0.1
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build & Test Native Android
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Cancela automáticamente si pasa de 15 minutos para que no se quede colgado
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
+      - name: Descargar código fuente del repositorio
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Configurar JDK 17 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      - name: Localizar directorio raíz del proyecto Android
+        id: find-android
+        run: |
+          echo "=== DIAGNÓSTICO DE ESTRUCTURA DEL REPOSITORIO ==="
+          pwd
+          ls -la
 
-      - name: Clean build cache
-        run: ./gradlew clean
+          if [ -f "gradlew" ] && [ -d "app" ]; then
+            TARGET_DIR="."
+          elif [ -f "android-vel/gradlew" ] && [ -d "android-vel/app" ]; then
+            TARGET_DIR="android-vel"
+          elif [ -f "vel-android-nativo/gradlew" ] && [ -d "vel-android-nativo/app" ]; then
+            TARGET_DIR="vel-android-nativo"
+          else
+            DISCOVERED=$(find . -name "gradlew" -not -path "*/node_modules/*" | head -n 1)
+            if [ -n "$DISCOVERED" ]; then
+              TARGET_DIR=$(dirname "$DISCOVERED")
+            else
+              TARGET_DIR="."
+            fi
+          fi
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-        
-      - name: Upload APK Artifact
-        if: always()
+          echo "Directorio seleccionado: '$TARGET_DIR'"
+          echo "ANDROID_DIR=$TARGET_DIR" >> $GITHUB_ENV
+          echo "target_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
+
+      - name: Verificar y asegurar binario de gradle-wrapper.jar
+        run: |
+          JAR_PATH="${{ env.ANDROID_DIR }}/gradle/wrapper/gradle-wrapper.jar"
+          if [ -f "$JAR_PATH" ] && [ $(stat -c%s "$JAR_PATH" 2>/dev/null || stat -f%z "$JAR_PATH" 2>/dev/null || echo 0) -gt 1000 ]; then
+            echo "gradle-wrapper.jar verificado correctamente en: $JAR_PATH"
+          else
+            echo "Descargando versión oficial de Gradle 8.10.2..."
+            mkdir -p "${{ env.ANDROID_DIR }}/gradle/wrapper"
+            curl -sSL -o "$JAR_PATH" "https://raw.githubusercontent.com/gradle/gradle/v8.10.2/gradle/wrapper/gradle-wrapper.jar" || \
+            curl -sSL -o "$JAR_PATH" "https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar"
+            ls -la "$JAR_PATH"
+          fi
+
+      - name: Asegurar permisos ejecutables para gradlew
+        run: |
+          chmod +x ${{ env.ANDROID_DIR }}/gradlew
+          ls -la ${{ env.ANDROID_DIR }}/gradlew
+
+      - name: Ejecutar pruebas unitarias de seguridad (10 pruebas)
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Compilar APK Debug
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Publicar APK como artefacto descargable
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: vel-0.1-app-debug
+          path: |
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+            **/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
